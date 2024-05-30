@@ -13,8 +13,8 @@ This project uses ElevenLabs for text-to-speech (TTS) and OpenAI's GPT API to cr
 
 1. **Clone the repository:**
     ```bash
-    git clone https://github.com/yourusername/yourproject.git
-    cd yourproject
+    git clone https://github.com/yukiwith5267/inspire_speech
+    cd inspire_speech
     ```
 
 2. **Install frontend dependencies:**
