@@ -1,0 +1,42 @@
+{
+  "name": "nextjs-fastapi",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "fastapi-dev": "pip3 install -r requirements.txt && python3 -m uvicorn api.index:app --reload --port 8080",
+    "next-dev": "./node_modules/.bin/next dev",
+    "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
+    "build": "./node_modules/.bin/next build",
+    "start": "./node_modules/.bin/next start",
+    "lint": "./node_modules/.bin/next lint"
+  },
+  "dependencies": {
+    "@radix-ui/react-aspect-ratio": "^1.0.3",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-slot": "^1.0.2",
+    "@types/express": "^4.17.21",
+    "@types/node": "20.12.12",
+    "@types/react": "18.3.2",
+    "@types/react-dom": "18.2.4",
+    "@typescript-eslint/visitor-keys": "^7.10.0",
+    "autoprefixer": "10.4.14",
+    "axios": "^1.7.2",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "concurrently": "^8.0.1",
+    "dotenv": "^16.4.5",
+    "eslint": "8.41.0",
+    "eslint-config-next": "13.4.4",
+    "express": "^4.19.2",
+    "lucide-react": "^0.379.0",
+    "next": "^13.4.4",
+    "postcss": "8.4.23",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-icons": "^5.2.1",
+    "tailwind-merge": "^2.3.0",
+    "tailwindcss": "3.3.2",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "5.4.5"
+  }
+}
