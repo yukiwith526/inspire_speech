@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss"
+import { fontFamily } from "tailwindcss/defaultTheme"
 
 const config = {
   darkMode: ["class"],
@@ -58,6 +59,9 @@ const config = {
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
+      fontFamily: {
+        sans: ["var(--font-sans)", ...fontFamily.sans],
+      },
       keyframes: {
         "accordion-down": {
           from: { height: "0" },
@@ -67,10 +71,35 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "slideIn": {
+          from: { transform: "translateX(-100%)" },
+          to: { transform: "translateX(0)" },
+        },
+        "slideOut": {
+          from: { transform: "translateX(0)" },
+          to: { transform: "translateX(-100%)" },
+        },
+        "fadeIn": {
+          from: { opacity: "0" },
+          to: { opacity: "1" },
+        },
+        "fadeOut": {
+          from: { opacity: "1" },
+          to: { opacity: "0" },
+        },
+        "pulse": {
+          "0%, 100%": { opacity: "0.6" },
+          "50%": { opacity: "1" },
+        }
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "slideIn": "slideIn 0.3s ease-out",
+        "slideOut": "slideOut 0.3s ease-out",
+        "fadeIn": "fadeIn 0.3s ease-out",
+        "fadeOut": "fadeOut 0.3s ease-out",
+        "pulse": "pulse 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite",
       },
     },
   },
