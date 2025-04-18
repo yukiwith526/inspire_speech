@@ -2,11 +2,11 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { AuthProvider } from "../context/AuthContext";
-import Header from "./Header";
-import { useState } from "react";
+import LayoutClient from "./components/LayoutClient";
 
 const inter = Inter({ subsets: ["latin"] });
 
+// メタデータはクライアントコンポーネントでは動作しないため、別のエクスポートにします
 export const metadata: Metadata = {
   title: "Inspire Speech",
   description: "AI-powered inspiration app",
@@ -17,21 +17,11 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-
-  const toggleSidebar = () => {
-    setSidebarOpen(!sidebarOpen);
-  };
-
   return (
     <html lang="en">
       <body className={inter.className}>
         <AuthProvider>
-          <Header toggleSidebar={toggleSidebar} />
-          <div className="flex">
-            {/* サイドバーコンポーネントがあれば、ここに追加できます */}
-            <main className="flex-1">{children}</main>
-          </div>
+          <LayoutClient>{children}</LayoutClient>
         </AuthProvider>
       </body>
     </html>
