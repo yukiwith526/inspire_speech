@@ -65,3 +65,36 @@ The backend is hosted on a Raspberry Pi using ngrok.
    ```bash
    ngrok http 8080
    ```
+
+## ソーシャルログイン設定（Google、GitHub）
+
+1. Supabase ダッシュボードにログイン
+2. プロジェクト > Authentication > Providers に移動
+3. 各プロバイダーの設定:
+
+### Google
+
+1. Google Cloud Console で新しいプロジェクトを作成
+2. OAuth 同意画面を設定（外部ユーザータイプ）
+3. 認証情報 > OAuth 2.0 クライアント ID 作成
+4. 承認済みのリダイレクト URI に`https://[あなたのプロジェクトID].supabase.co/auth/v1/callback`を追加
+5. クライアント ID とクライアントシークレットを Supabase 設定に入力
+6. Google プロバイダーを有効化
+
+### GitHub
+
+1. GitHub アカウント > Settings > Developer Settings > OAuth Apps
+2. 新しい OAuth アプリケーションを登録
+3. Authorization callback URL に`https://[あなたのプロジェクトID].supabase.co/auth/v1/callback`を追加
+4. ClientID と Client Secret を取得
+5. Supabase プロジェクト設定で GitHub プロバイダーを有効化し、キーを入力
+
+### Facebook
+
+1. [Facebook Developers](https://developers.facebook.com/) にアクセスし、アカウント作成・ログイン
+2. 「マイアプリ」から新しいアプリを作成（タイプ：「消費者」または「ビジネス」）
+3. 左側のメニューから「Facebook Login」>「設定」に移動
+4. 「有効な OAuth リダイレクト URI」に`https://[あなたのプロジェクトID].supabase.co/auth/v1/callback`を追加
+5. 「基本設定」から「アプリ ID」と「アプリシークレット」を取得
+6. Supabase ダッシュボードの「Authentication > Providers」で Facebook を有効化
+7. 取得したアプリ ID とシークレットを入力して保存

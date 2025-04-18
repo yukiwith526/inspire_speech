@@ -4,28 +4,53 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/context/AuthContext";
-import { Sparkles, Mail, Lock, ArrowRight } from "lucide-react";
+import { useAuth, type AuthErrorResponse } from "@/context/AuthContext";
+import {
+  Sparkles,
+  Mail,
+  Lock,
+  ArrowRight,
+  Github,
+  Facebook,
+  AlertTriangle,
+} from "lucide-react";
 import Link from "next/link";
+import { FcGoogle } from "react-icons/fc";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+
+// エラーメッセージのマッピング
+const errorMessages: Record<string, string> = {
+  provider_not_enabled:
+    "このプロバイダーは現在有効になっていません。Supabaseの設定を確認してください。",
+  validation_failed:
+    "認証プロバイダーの検証に失敗しました。設定を確認してください。",
+  invalid_provider: "無効な認証プロバイダーです。",
+  redirect_url_not_allowed:
+    "リダイレクトURLが許可されていません。設定を確認してください。",
+  invalid_redirect_url: "無効なリダイレクトURLです。",
+};
 
 export default function Auth() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLogin, setIsLogin] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<AuthErrorResponse | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<string | null>(null);
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInWithOAuth, checkUserExists } = useAuth();
 
   // URLからエラーパラメータを検出
   useEffect(() => {
     const errorParam = searchParams.get("error");
     if (errorParam === "session_error") {
-      setError(
-        "認証セッションに問題が発生しました。もう一度ログインしてください。"
-      );
+      setError({
+        code: "session_error",
+        message:
+          "認証セッションに問題が発生しました。もう一度ログインしてください。",
+      });
     }
   }, [searchParams]);
 
@@ -40,13 +65,37 @@ export default function Auth() {
         const { error } = await signIn(email, password);
         if (error) {
           console.error("Login error:", error);
-          throw new Error(error.message || "ログインに失敗しました。");
+          setError(error);
+          return;
         }
         router.push("/");
       } else {
         // Password validation
         if (password.length < 6) {
-          setError("パスワードは6文字以上にしてください。");
+          setError({
+            code: "weak_password",
+            message: "パスワードは6文字以上にしてください。",
+          });
+          setLoading(false);
+          return;
+        }
+
+        // 既存ユーザーチェック
+        const { exists, error: checkError } = await checkUserExists(email);
+        if (checkError) {
+          console.error("User check error:", checkError);
+          setError(checkError);
+          setLoading(false);
+          return;
+        }
+
+        if (exists) {
+          setError({
+            code: "user_already_exists",
+            message:
+              "このメールアドレスは既に登録されています。ログインしてください。",
+          });
+          setIsLogin(true); // ログインモードに切り替え
           setLoading(false);
           return;
         }
@@ -54,7 +103,8 @@ export default function Auth() {
         const { error, user } = await signUp(email, password);
         if (error) {
           console.error("Signup error:", error);
-          throw new Error(error.message || "アカウント作成に失敗しました。");
+          setError(error);
+          return;
         }
 
         // If we get here with no error, it's likely waiting for email confirmation
@@ -64,21 +114,43 @@ export default function Auth() {
       }
     } catch (err: any) {
       console.error("Auth error:", err);
-      let errorMsg = err.message || "認証中にエラーが発生しました。";
-
-      // Check for common Supabase error messages and provide better feedback
-      if (errorMsg.includes("already registered")) {
-        errorMsg = "このメールアドレスは既に登録されています。";
-      } else if (errorMsg.includes("invalid login")) {
-        errorMsg = "メールアドレスまたはパスワードが正しくありません。";
-      } else if (errorMsg.includes("Database error")) {
-        errorMsg =
-          "サーバーエラーが発生しました。しばらくしてからもう一度お試しください。";
-      }
-
-      setError(errorMsg);
+      setError({
+        code: "unknown_error",
+        message: "予期しないエラーが発生しました。もう一度お試しください。",
+        detail: err.message,
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOAuthSignIn = async (
+    provider: "google" | "github" | "facebook"
+  ) => {
+    setSocialLoading(provider);
+    setError(null); // エラーメッセージをクリア
+
+    try {
+      const { error } = await signInWithOAuth(provider);
+      if (error) {
+        console.error(`${provider} sign in error:`, error);
+        setError(error);
+      }
+    } catch (err: any) {
+      console.error(`${provider} sign in error:`, err);
+      setError({
+        code: "unknown_error",
+        message: `${
+          provider === "google"
+            ? "Google"
+            : provider === "github"
+            ? "GitHub"
+            : "Facebook"
+        }ログインに予期しないエラーが発生しました。もう一度お試しください。`,
+        detail: err.message,
+      });
+    } finally {
+      setSocialLoading(null);
     }
   };
 
@@ -93,7 +165,7 @@ export default function Auth() {
             </span>
           </Link>
           <p className="mt-2 text-zinc-400">
-            AIがあなたのインスピレーションを引き出します
+            インスピレーションを引き出すAI会話アプリ
           </p>
         </div>
 
@@ -103,21 +175,30 @@ export default function Auth() {
           </h2>
 
           {error && (
-            <div
-              className="bg-red-900/30 border border-red-800 text-red-200 px-4 py-3 rounded mb-4"
-              role="alert"
+            <Alert
+              variant="destructive"
+              className="bg-red-950/50 border-red-900 text-red-100 mb-4"
             >
-              <span className="block sm:inline">{error}</span>
-            </div>
+              <AlertTriangle className="h-4 w-4 mr-2" />
+              <div>
+                <AlertTitle>エラー</AlertTitle>
+                <AlertDescription>
+                  <p>{error.message}</p>
+                  {error.detail && (
+                    <p className="text-xs mt-1 text-red-300">{error.detail}</p>
+                  )}
+                </AlertDescription>
+              </div>
+            </Alert>
           )}
 
           {success && (
-            <div
-              className="bg-green-900/30 border border-green-800 text-green-200 px-4 py-3 rounded mb-4"
-              role="alert"
-            >
-              <span className="block sm:inline">{success}</span>
-            </div>
+            <Alert className="bg-green-950/50 border-green-900 text-green-100 mb-4">
+              <div>
+                <AlertTitle>成功</AlertTitle>
+                <AlertDescription>{success}</AlertDescription>
+              </div>
+            </Alert>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
@@ -195,6 +276,79 @@ export default function Auth() {
               )}
             </Button>
           </form>
+
+          <div className="relative my-6">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-zinc-600"></div>
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-zinc-800 px-2 text-zinc-400">または</span>
+            </div>
+          </div>
+
+          <div className="space-y-3">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white"
+              onClick={() => handleOAuthSignIn("google")}
+              disabled={!!socialLoading}
+            >
+              {socialLoading === "google" ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white mx-auto"></div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <FcGoogle className="mr-2 h-5 w-5" />
+                  <span>Googleでログイン</span>
+                </div>
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white"
+              onClick={() => handleOAuthSignIn("github")}
+              disabled={!!socialLoading}
+            >
+              {socialLoading === "github" ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white mx-auto"></div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <Github className="mr-2 h-5 w-5" />
+                  <span>GitHubでログイン</span>
+                </div>
+              )}
+            </Button>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full border-zinc-700 bg-zinc-800 hover:bg-zinc-700 text-white"
+              onClick={() => handleOAuthSignIn("facebook")}
+              disabled={!!socialLoading}
+            >
+              {socialLoading === "facebook" ? (
+                <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-white mx-auto"></div>
+              ) : (
+                <div className="flex items-center justify-center">
+                  <Facebook className="mr-2 h-5 w-5 text-[#1877F2]" />
+                  <span>Facebookでログイン</span>
+                </div>
+              )}
+            </Button>
+          </div>
+
+          {error && error.code === "provider_not_enabled" && (
+            <div className="mt-4 text-center">
+              <Link
+                href="/auth/troubleshooting"
+                className="text-sm text-blue-400 hover:underline"
+              >
+                ソーシャルログインの設定方法を確認する
+              </Link>
+            </div>
+          )}
 
           <div className="mt-6 pt-4 border-t border-zinc-700 text-center">
             <button

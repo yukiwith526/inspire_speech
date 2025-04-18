@@ -4,15 +4,19 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { startStreaming } from "./utils/start_streaming"; // Import the startStreaming function
+import {
+  startStreaming,
+  type AudioAPIErrorResponse,
+} from "./utils/start_streaming";
 import * as React from "react";
 import { SelectDemo, selectedVoiceId } from "./ui/select";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import type { ChatHistory } from "@/lib/supabase";
-import { PlusCircle, Send, Sparkles } from "lucide-react";
+import { PlusCircle, Send, Sparkles, AlertTriangle, X } from "lucide-react";
 import Header from "./Header";
 import Sidebar from "./components/Sidebar";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
 
@@ -28,6 +32,7 @@ export default function Home() {
   const { user, isLoading } = useAuth();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
+  const [apiError, setApiError] = useState<AudioAPIErrorResponse | null>(null);
 
   // コンポーネントのマウント状態を管理
   useEffect(() => {
@@ -84,6 +89,11 @@ export default function Home() {
     }
   };
 
+  // エラーメッセージを閉じる処理
+  const dismissError = () => {
+    setApiError(null);
+  };
+
   const handleSubmit = async () => {
     if (!user) {
       router.push("/auth");
@@ -95,6 +105,16 @@ export default function Home() {
       return;
     }
 
+    if (!text.trim()) {
+      setApiError({
+        type: "api_error",
+        message: "テキストが空です。メッセージを入力してください。",
+        code: "empty_text",
+      });
+      return;
+    }
+
+    setApiError(null); // エラーを消去
     setLoading(true);
     try {
       const res = await fetch(`${API_URL}/submit`, {
@@ -106,7 +126,14 @@ export default function Home() {
       });
 
       if (!res.ok) {
-        throw new Error("Network response was not ok");
+        const errorData = await res.json().catch(() => ({}));
+        setApiError({
+          type: "api_error",
+          message: "サーバーとの通信に失敗しました。",
+          code: res.status,
+          details: errorData.error || res.statusText,
+        });
+        throw new Error(`HTTP error! Status: ${res.status}`);
       }
 
       const data = await res.json();
@@ -128,11 +155,23 @@ export default function Home() {
 
       // Start streaming the response as audio
       setAudioPlaying(true);
-      await startStreaming(data.sophia_response, selectedVoiceId);
+      const streamResult = await startStreaming(
+        data.sophia_response,
+        selectedVoiceId
+      );
+      if (!streamResult.success && streamResult.error) {
+        setApiError(streamResult.error);
+      }
       setAudioPlaying(false);
     } catch (error) {
       console.error("Error:", error);
-      setResponse("Server is not running.");
+      if (!apiError) {
+        setApiError({
+          type: "unknown_error",
+          message: "予期しないエラーが発生しました。もう一度お試しください。",
+          details: error instanceof Error ? error.message : String(error),
+        });
+      }
       setAudioPlaying(false);
     } finally {
       setLoading(false);
@@ -145,12 +184,23 @@ export default function Home() {
       return;
     }
 
+    setApiError(null); // エラーを消去
     setText(item.input_text);
     setResponse(item.response);
 
     setAudioPlaying(true);
     try {
-      await startStreaming(item.response, item.voice_id);
+      const streamResult = await startStreaming(item.response, item.voice_id);
+      if (!streamResult.success && streamResult.error) {
+        setApiError(streamResult.error);
+      }
+    } catch (error) {
+      console.error("Audio playback error:", error);
+      setApiError({
+        type: "audio_error",
+        message: "音声の再生中にエラーが発生しました。",
+        details: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       setAudioPlaying(false);
     }
@@ -201,6 +251,36 @@ export default function Home() {
               </Button>
             </div>
 
+            {/* エラーメッセージ表示 */}
+            {apiError && (
+              <Alert
+                variant="destructive"
+                className="bg-red-950/50 border-red-900 text-red-100"
+              >
+                <AlertTriangle className="h-4 w-4 mr-2" />
+                <div className="flex-1">
+                  <AlertTitle className="flex items-center justify-between">
+                    <span>エラーが発生しました</span>
+                    <Button
+                      variant="ghost"
+                      className="h-6 w-6 p-0 rounded-full text-red-200 hover:text-white hover:bg-red-900"
+                      onClick={dismissError}
+                    >
+                      <X size={14} />
+                    </Button>
+                  </AlertTitle>
+                  <AlertDescription>
+                    <p>{apiError.message}</p>
+                    {apiError.details && (
+                      <p className="text-xs mt-1 text-red-300">
+                        {apiError.details}
+                      </p>
+                    )}
+                  </AlertDescription>
+                </div>
+              </Alert>
+            )}
+
             {/* メインコンテンツ */}
             <div className="w-full space-y-6">
               {/* 入力部分 */}
@@ -215,7 +295,7 @@ export default function Home() {
                   <SelectDemo />
                   <Button
                     onClick={handleSubmit}
-                    disabled={loading || audioPlaying}
+                    disabled={loading || audioPlaying || !text.trim()}
                     className="bg-blue-600 hover:bg-blue-700 text-white"
                   >
                     {loading ? (
