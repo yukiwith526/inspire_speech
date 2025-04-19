@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import {
   startStreaming,
+  cleanupAudio,
   type AudioAPIErrorResponse,
 } from "./utils/start_streaming";
 import * as React from "react";
@@ -37,7 +38,11 @@ export default function Home() {
   // コンポーネントのマウント状態を管理
   useEffect(() => {
     setMounted(true);
-    return () => setMounted(false);
+    return () => {
+      setMounted(false);
+      // コンポーネントのアンマウント時にオーディオをクリーンアップ
+      cleanupAudio();
+    };
   }, []);
 
   // サイドバーの開閉を制御する関数

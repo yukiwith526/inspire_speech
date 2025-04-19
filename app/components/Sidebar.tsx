@@ -8,6 +8,7 @@ import { LogOut, User, X, Trash2, MessageSquare } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import type { ChatHistory } from "@/lib/supabase";
 import Link from "next/link";
+import { cleanupAudio } from "../utils/start_streaming";
 
 interface SidebarProps {
   isOpen: boolean;
@@ -43,6 +44,13 @@ export default function Sidebar({
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
+
+  // コンポーネントのアンマウント時にオーディオをクリーンアップ
+  useEffect(() => {
+    return () => {
+      cleanupAudio();
+    };
+  }, []);
 
   // ユーザーが認証されていて、サイドバーが表示されているときに履歴を読み込む
   useEffect(() => {

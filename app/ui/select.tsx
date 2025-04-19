@@ -7,7 +7,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { startStreaming } from "../utils/start_streaming";
+import { startStreaming, cleanupAudio } from "../utils/start_streaming";
 import { Mic } from "lucide-react";
 
 // Initialize with default value
@@ -22,6 +22,13 @@ const voiceMap: Record<string, string> = {
 export function SelectDemo() {
   const [selectedVoice, setSelectedVoice] = React.useState("Sofia");
   const [samplePlaying, setSamplePlaying] = React.useState(false);
+
+  // コンポーネントのアンマウント時にクリーンアップ
+  React.useEffect(() => {
+    return () => {
+      cleanupAudio();
+    };
+  }, []);
 
   const handleSelectChange = async (value: string) => {
     // 既に再生中なら何もしない

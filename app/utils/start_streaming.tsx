@@ -34,6 +34,22 @@ const voiceSettings = {
 
 // 現在再生中のオーディオを追跡するための変数
 let currentAudio: HTMLAudioElement | null = null;
+let currentAudioURL: string | null = null;
+
+// コンポーネントのアンマウント時やクリーンアップ時に呼び出す関数
+export const cleanupAudio = () => {
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio.src = "";
+    currentAudio.load();
+    currentAudio = null;
+  }
+
+  if (currentAudioURL) {
+    URL.revokeObjectURL(currentAudioURL);
+    currentAudioURL = null;
+  }
+};
 
 export const startStreaming = async (
   text: string,
@@ -74,11 +90,8 @@ export const startStreaming = async (
     };
   }
 
-  // 既に再生中のオーディオがあれば停止する
-  if (currentAudio) {
-    currentAudio.pause();
-    currentAudio = null;
-  }
+  // 既に再生中のオーディオがあれば停止して完全にクリーンアップする
+  cleanupAudio();
 
   const baseUrl = "https://api.elevenlabs.io/v1/text-to-speech";
   const headers = {
@@ -104,18 +117,20 @@ export const startStreaming = async (
 
     if (response.status === 200) {
       try {
-        const audio = new Audio(URL.createObjectURL(response.data));
+        // Blob URLの作成と保持
+        currentAudioURL = URL.createObjectURL(response.data);
+        const audio = new Audio(currentAudioURL);
 
         // 再生失敗時のエラーハンドリング
         audio.onerror = (event) => {
           console.error("Audio playback error:", event);
-          currentAudio = null;
+          cleanupAudio();
           throw new Error("音声の再生に失敗しました。");
         };
 
         // 再生終了時のイベントハンドラを設定
         audio.onended = () => {
-          currentAudio = null;
+          cleanupAudio();
           console.log("Audio playback completed");
         };
 
@@ -127,7 +142,7 @@ export const startStreaming = async (
         if (playPromise !== undefined) {
           playPromise.catch((error) => {
             console.error("Audio playback promise error:", error);
-            currentAudio = null;
+            cleanupAudio();
             return {
               success: false,
               error: {
@@ -142,6 +157,7 @@ export const startStreaming = async (
         return { success: true };
       } catch (error) {
         console.error("Audio creation error:", error);
+        cleanupAudio();
         return {
           success: false,
           error: {
